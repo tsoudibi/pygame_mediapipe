@@ -9,7 +9,7 @@ import time
 
 # intilize
 pygame.init()
-width, height = 1280, 720
+width, height = 640, 480
 
 # create mediapipe object
 mp_drawing = mp.solutions.drawing_utils
@@ -21,7 +21,7 @@ camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
 camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 ret, background = camera.read()
 
-# create screen with 1280 * 720 
+# create screen 
 screen = pygame.display.set_mode((width,height))
 pygame.display.set_caption('pygame with mediapipe')
 
@@ -48,9 +48,7 @@ def mediapipe_pose():
             # To improve performance, optionally mark the image as not writeable to
             # pass by reference.
             image.flags.writeable = False
-            time1 = time.time()
             results = pose.process(image)
-            print(time.time()-time1)
 
             # Draw the pose annotation on the image.
             image.flags.writeable = True
