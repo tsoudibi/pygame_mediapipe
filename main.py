@@ -10,7 +10,7 @@ import threading
 
 # intilize
 pygame.init()
-width, height = 640, 480
+SCREEN_WIDTH, SCREEN_HEIGHT = 640, 480
 
 # create mediapipe object
 mp_drawing = mp.solutions.drawing_utils
@@ -20,8 +20,8 @@ mp_hands = mp.solutions.hands
 
 # active camera, use cv2 rather then pygame
 camera = cv2.VideoCapture(0)
-camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+camera.set(cv2.CAP_PROP_FRAME_WIDTH, SCREEN_WIDTH)
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT, SCREEN_HEIGHT)
 
 # take first image 
 _, background = camera.read()
@@ -29,18 +29,52 @@ background = cv2.cvtColor(background, cv2.COLOR_BGR2RGB)
 background = cv2.flip(background, 1) # swap axis and flip image
 
 # create screen 
-screen = pygame.display.set_mode((width,height))
+screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 pygame.display.set_caption('pygame with mediapipe')
 
 # cap images, contain main image and backup regard of video capture fail
 image_main = background
 image_backup = background
 
-# bool to kill looping
-loop_pose = True
+# define mouse class
+class Mouse:
+    def __init__(self, x = 0, y = 0, size = 10, color = (255, 126, 79), thickness = -1):
+        self.x = x
+        self.y = y 
+        self.size = size
+        self.color = color
+        self.thickness = thickness
+    
+    def set_position(self, x, y):
+        self.x = x
+        self.y = y 
+    def set_color(self, color):
+        self.color = color
+mouse_1 = Mouse()
+mouse_2 = Mouse(color = (0,0,255))
 
-# notify the target mode of mediapipe
+# draw the connection between two fingers
+def mouse_display(image, results):
+    # make sure there is hand detected and weather each landmarks exist
+    if results.multi_hand_landmarks:
+        for hands_idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
+            if hand_landmarks:
+                for idx, landmark in enumerate(hand_landmarks.landmark):
+                    if idx == 4: # THUMB_TIP
+                        THUMB_TIP_x, THUMB_TIP_y = int(landmark.x * SCREEN_WIDTH), int(landmark.y * SCREEN_HEIGHT)
+                    if idx == 8: # INDEX_FINGER_TIP
+                        INDEX_FINGER_TIP_x, INDEX_FINGER_TIP_y = int(landmark.x * SCREEN_WIDTH), int(landmark.y * SCREEN_HEIGHT)
+                if hands_idx == 0 :
+                    mouse_1.set_position( round((THUMB_TIP_x + INDEX_FINGER_TIP_x)/2), round((THUMB_TIP_y + INDEX_FINGER_TIP_y)/2))
+                    cv2.circle(image, ( mouse_1.x, mouse_1.y ), mouse_1.size, mouse_1.color, mouse_1.thickness)
+                elif hands_idx == 1 :
+                    mouse_2.set_position( round((THUMB_TIP_x + INDEX_FINGER_TIP_x)/2), round((THUMB_TIP_y + INDEX_FINGER_TIP_y)/2))
+                    cv2.circle(image, ( mouse_2.x, mouse_2.y ), mouse_2.size, mouse_2.color, mouse_2.thickness)
+    return image
+
+# dynamic settings of mediapipe thread
 MP_MODE = 'hands'
+MP_LOOP = True
 
 # funtion to run mediapipe and create image 
 def mediapipe_pose():
@@ -49,7 +83,7 @@ def mediapipe_pose():
         pose = mp_pose.Pose(min_detection_confidence=0.5,min_tracking_confidence=0.5)
     elif MP_MODE == 'hands':
         hands = mp_hands.Hands(min_detection_confidence=0.5,min_tracking_confidence=0.5)
-    while  camera.isOpened() and loop_pose:
+    while  camera.isOpened() and MP_LOOP:
         time1 = time.time()
         success, image = camera.read()
         if not success:
@@ -72,17 +106,12 @@ def mediapipe_pose():
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         # drawing landmarks
         if MP_MODE == 'pose':
-            mp_drawing.draw_landmarks( 
-                image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+            mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
         elif MP_MODE == 'hands':
+            image = mouse_display(image, results)
             if results.multi_hand_landmarks:
                 for hand_landmarks in results.multi_hand_landmarks:
-                    mp_drawing.draw_landmarks(
-                        image,
-                        hand_landmarks,
-                        mp_hands.HAND_CONNECTIONS,
-                        mp_drawing_styles.get_default_hand_landmark_style(),
-                        mp_drawing_styles.get_default_hand_connection_style())
+                    mp_drawing.draw_landmarks(image,hand_landmarks,mp_hands.HAND_CONNECTIONS)
             
         # after drawing, change color back tp rgb
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -125,8 +154,8 @@ def main():
         pygame.display.update()
 
     # kill the thread 
-    global loop_pose
-    loop_pose = False
+    global MP_LOOP
+    MP_LOOP = False
     thread_POSE.join()
 
     pygame.quit()
