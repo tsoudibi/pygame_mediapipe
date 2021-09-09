@@ -9,13 +9,10 @@
 
 import cv2
 import mediapipe as mp
-import time
+import numpy as np
 import threading
-import mouse  as ms
 
-# create mouse class
-mouse_1 = ms.Mouse(idx = 0)
-mouse_2 = ms.Mouse(idx = 1, color = (0,0,255))
+
 
 # create mediapipe object
 mp_drawing = mp.solutions.drawing_utils
@@ -35,6 +32,7 @@ class mediapipe_data(threading.Thread):
         # dynamic settings of mediapipe thread
         self.MP_MODE = 'hands'
         self.MP_LOOP = True
+        self.results_main = None
         _, image = camera.read()
         self.image_main = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
@@ -57,8 +55,8 @@ class mediapipe_data(threading.Thread):
         elif self.MP_MODE == 'hands':
             hands = mp_hands.Hands(min_detection_confidence = 0.8, min_tracking_confidence = 0.5)
         while  camera.isOpened() and self.MP_LOOP:
-            time1 = time.time()
             success, image = camera.read()
+             # image = fish_eye_fix(image)
             if not success:
                 print("Ignoring empty camera frame.")
                 # video capture fail, use backup image
@@ -98,28 +96,26 @@ class mediapipe_data(threading.Thread):
         self.image_main = self.image_backup
         # https://google.github.io/mediapipe/solutions/pose#static_image_mode
 
-def caculate_mouse(mouse_1, mouse_2, image, results):
-        SCREEN_HEIGHT, SCREEN_WIDTH, _ = image.shape
-        # make sure there is hand detected and weather each landmarks exist
-        if results.multi_hand_landmarks:
-            for hands_idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
-                if hand_landmarks:
-                    for idx, landmark in enumerate(hand_landmarks.landmark):
-                        if idx == 4: # THUMB_TIP
-                            THUMB_TIP_x, THUMB_TIP_y = int(landmark.x * SCREEN_WIDTH), int(landmark.y * SCREEN_HEIGHT)
-                        if idx == 8: # INDEX_FINGER_TIP
-                            INDEX_FINGER_TIP_x, INDEX_FINGER_TIP_y = int(landmark.x * SCREEN_WIDTH), int(landmark.y * SCREEN_HEIGHT)
-                    if hands_idx == 0 :
-                        mouse_1.set_distence(math.isqrt((THUMB_TIP_x - INDEX_FINGER_TIP_x)**2 + (THUMB_TIP_y - INDEX_FINGER_TIP_y)**2))
-                        mouse_1.set_position( round((THUMB_TIP_x + INDEX_FINGER_TIP_x)/2), round((THUMB_TIP_y + INDEX_FINGER_TIP_y)/2))
-                        cv2.circle(image, ( mouse_1.x, mouse_1.y ), int(mouse_1.distence * 0.15), mouse_1.color, mouse_1.thickness)
-                    elif hands_idx == 1 :
-                        mouse_2.set_distence(math.isqrt((THUMB_TIP_x - INDEX_FINGER_TIP_x)**2 + (THUMB_TIP_y - INDEX_FINGER_TIP_y)**2))
-                        mouse_2.set_position( round((THUMB_TIP_x + INDEX_FINGER_TIP_x)/2), round((THUMB_TIP_y + INDEX_FINGER_TIP_y)/2))
-                        cv2.circle(image, ( mouse_2.x, mouse_2.y ), int(mouse_2.distence * 0.15), mouse_2.color, mouse_2.thickness)
-                    else:
-                        print("unexpected hands")
+# fix matrix to correct fisheye
+DIM = (2560, 1440)
+K = np.array([[1694.7801205342007, 0.0, 1363.235424743914], [0.0, 1694.4106664109822, 686.0493220616949], [0.0, 0.0, 1.0]])
+D = np.array([[-0.010547721322285927], [0.02576312669611254], [-0.1546810103404629], [0.15853057545495458]])
 
+def fish_eye_fix(image):
+    # this program is quoted from others, see more information in fisheye_fix.py
+    dim1 = image.shape[:2][::-1]  #dim1 is the dimension of input image to un-distort
+    assert dim1[0]/dim1[1] == DIM[0]/DIM[1], "Image to undistort needs to have same aspect ratio as the ones used in calibration"
+    if dim1[0]!=DIM[0]:
+        image = cv2.resize(image,DIM,interpolation=cv2.INTER_AREA)
+    Knew = K.copy()
+    Knew[(0,1), (0,1)] = 0.6 * Knew[(0,1), (0,1)] #scaling
+    map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, np.eye(3), Knew, DIM, cv2.CV_16SC2)
+    undistorted_img = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+    img_valid  = cut(undistorted_img)
+    return img_valid
 
-
-        
+def cut(img):
+    x,y,w,h = 475,254,1536,864
+    img_valid = img[y:y+h, x:x+w]
+    img_valid = cv2.resize(img_valid, (1280, 720), interpolation=cv2.INTER_AREA)
+    return img_valid

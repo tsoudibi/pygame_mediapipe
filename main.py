@@ -21,16 +21,16 @@ thread_obj = mp_thread.mediapipe_data()
 thread_obj.start()
 
 # create sprites groups
-allsprite = pygame.sprite.Group()  
+allfish = pygame.sprite.Group()  
 allmouse = pygame.sprite.Group()  
 
 # create new mouse and add to group
 mouse_1 = sp.mouse(idx = 0, radius = 10, x = 0, y = 0, color = (0,0,255))
 allmouse.add(mouse_1)
 
-# create new ball and add to group
-ball = sp.ball(50, random.randint(0,SCREEN_WIDTH), 0, (0,255,0))
-allsprite.add(ball)
+# create new fish and add to group
+fish = sp.fish(50, random.randint(0,SCREEN_WIDTH), 0, (0,255,0))
+allfish.add(fish)
 
 # set clock
 clock = pygame.time.Clock() 
@@ -58,11 +58,11 @@ def main():
         pygame.surfarray.blit_array(screen, background)
 
         # update sprites status and draw
-        for spr in allsprite:
-            spr.update()
-            if (spr.kill == True):
-                allsprite.remove(spr)
-        allsprite.draw(screen)
+        for fish in allfish:
+            fish.update(mouse_1)
+            if (fish.kill == True):
+                allfish.remove(fish)
+        allfish.draw(screen)
         for mouse in allmouse:
             mouse.update(thread_obj.get_results())
             if (mouse.kill == True):
