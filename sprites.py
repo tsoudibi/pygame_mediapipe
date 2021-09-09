@@ -4,6 +4,7 @@ import math
 
 # import other files 
 import mediapipe_thread as mp_thread
+import spritesheet 
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
 
@@ -90,42 +91,87 @@ class mouse(pygame.sprite.Sprite):
 
 
 class fish(pygame.sprite.Sprite):
-    def __init__(self, radius, x, y, color) :
+    def __init__(self, x = SCREEN_WIDTH/2, y = SCREEN_HEIGHT/2, color = (0,0,0),
+                type = 'doux', speed = 3, scale = 10) :
         # init by parent
         pygame.sprite.Sprite.__init__(self)
 
-        self.image = pygame.Surface([radius*2, radius*2])  # create canvas
+        ## sprite sheet
+        if type == 'doux':
+            dino_ss = spritesheet.spritesheet('.\pygame_mediapipe\images\dino_sheets\Dino_doux.png')
+        elif type == 'mort':
+            dino_ss = spritesheet.spritesheet('.\pygame_mediapipe\images\dino_sheets\Dino_mort.png')
+        elif type == 'tard':
+            dino_ss = spritesheet.spritesheet('.\pygame_mediapipe\images\dino_sheets\Dino_tard.png')
+        elif type == 'vita':
+            dino_ss = spritesheet.spritesheet('.\pygame_mediapipe\images\dino_sheets\Dino_vita.png')
+        self.idle_frame_R = []
+        self.move_frame_R = []
+        self.idle_frame_R = dino_ss.images_at( ((4, 4, 15, 17), (28, 4, 15, 17),(52, 4, 15, 17),(76, 4, 15, 17)), scale = scale)
+        self.move_frame_R = dino_ss.images_at( ((76, 4, 15, 17), (100, 4, 15, 17),(124, 4, 15, 17),(148, 4, 15, 17),
+                                            (172, 4, 15, 17),(196, 4, 15, 17),(220, 4, 15, 17),(244, 4, 15, 17)), scale = scale)
+        self.idle_frame_L = spritesheet.flip_images(self.idle_frame_R)
+        self.move_frame_L = spritesheet.flip_images(self.move_frame_R)
+
+        self.image = self.move_frame_R[0]  # create canvas
         self.image.set_colorkey((0,0,0))
-        self.radius = radius # set radius for circle sprite (for collide_circle)
         self.rect = self.image.get_rect() # create rect for collide detection 
         self.rect.center = (x, y)  # set initial position
         self.kill = False
 
-        pygame.draw.circle(self.image, color, [radius,radius], radius, 0)
+        #pygame.draw.circle(self.image, color, [radius,radius], radius, 0)
 
         # fish setting 
         self.color = color
+        self.speed = speed
         self.forced = False # weather the fish is forced to move
-        self.dir = (3,3) # moving direction \
-        self.excite = 50 # the smaller, the fasterthe fish will change its dir
-        self.excite_timer = 50
+        self.dir = (random.randint(self.speed * -1,self.speed),random.randint(self.speed * -1,self.speed)) # moving direction \
+        self.excite = 200 # the smaller, the fasterthe fish will change its dir
+        self.excite_timer = self.excite
+        self.facing = 'R'
+    
+    def draw(self, screen):
+        pygame.draw.rect(screen, (255,0,0), self.rect, 2)
 
     def update(self, mouse):
-        if  pygame.sprite.collide_circle(self, mouse) and mouse.is_push_down():
+        if  pygame.sprite.collide_rect(self, mouse) and mouse.is_push_down():
             self.forced = True
             # forced to move
-            self.rect.y = mouse.rect.y - self.radius
-            self.rect.x = mouse.rect.x - self.radius
+            self.rect.y = mouse.rect.y - self.rect.height / 2
+            self.rect.x = mouse.rect.x - self.rect.width / 2
         else:
             self.forced = False
             # free swimming
             if self.excite_timer <= 0:
                 # out of excite, change dir
-                self.dir = (random.randint(-3,3),random.randint(-3,3))
+                self.dir = (random.randint(self.speed * -1,self.speed),random.randint(self.speed * -1,self.speed))
                 self.excite_timer = self.excite
             else:
-                if self.rect.y <=  SCREEN_HEIGHT - self.radius * 2 and self.rect.y >=  self.radius * 2:
+                # set the range of the fish to move
+                border = 100
+                # horizontal
+                if self.rect.y <=  SCREEN_HEIGHT - self.rect.height - border and self.rect.y >=  border:
                     self.rect.y += self.dir[1]
-                if self.rect.x <=  SCREEN_WIDTH - self.radius * 2 and self.rect.x >=  self.radius * 2:
+                else :
+                    # if out of border, change direction 
+                    if self.rect.y > SCREEN_HEIGHT/2 : self.rect.y = SCREEN_HEIGHT - self.rect.height - border
+                    else: self.rect.y =  border
+                    self.dir =  (self.dir[0], self.dir[1] * -1)
+                # vertical
+                if self.rect.x <=  SCREEN_WIDTH - self.rect.width - border and self.rect.x >=  border:
                     self.rect.x += self.dir[0]
+                else:
+                    # if out of border, change direction 
+                    if self.rect.x > SCREEN_WIDTH/2 : self.rect.x =  SCREEN_WIDTH - self.rect.width - border
+                    else: self.rect.x =  border
+                    self.dir =  (self.dir[0] * -1, self.dir[1])
+            # changing frame by facing
+            if self.dir[0] > 0:
+                self.facing = 'R'
+                frame = (self.rect.x // 30) % len(self.move_frame_R)
+                self.image = self.move_frame_R[frame]
+            elif self.dir[0] < 0:
+                self.facing = 'L'
+                frame = (self.rect.x // 30) % len(self.move_frame_L)
+                self.image = self.move_frame_L[frame]
             self.excite_timer -= 1

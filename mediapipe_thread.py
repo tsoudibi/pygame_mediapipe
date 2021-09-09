@@ -11,6 +11,7 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import threading
+import time
 
 
 
@@ -56,7 +57,7 @@ class mediapipe_data(threading.Thread):
             hands = mp_hands.Hands(min_detection_confidence = 0.8, min_tracking_confidence = 0.5)
         while  camera.isOpened() and self.MP_LOOP:
             success, image = camera.read()
-             # image = fish_eye_fix(image)
+            # image = fish_eye_fix(image)
             if not success:
                 print("Ignoring empty camera frame.")
                 # video capture fail, use backup image
@@ -105,17 +106,14 @@ def fish_eye_fix(image):
     # this program is quoted from others, see more information in fisheye_fix.py
     dim1 = image.shape[:2][::-1]  #dim1 is the dimension of input image to un-distort
     assert dim1[0]/dim1[1] == DIM[0]/DIM[1], "Image to undistort needs to have same aspect ratio as the ones used in calibration"
-    if dim1[0]!=DIM[0]:
-        image = cv2.resize(image,DIM,interpolation=cv2.INTER_AREA)
+    image = cv2.resize(image,DIM,interpolation=cv2.INTER_AREA)
     Knew = K.copy()
     Knew[(0,1), (0,1)] = 0.6 * Knew[(0,1), (0,1)] #scaling
     map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, np.eye(3), Knew, DIM, cv2.CV_16SC2)
     undistorted_img = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-    img_valid  = cut(undistorted_img)
-    return img_valid
-
-def cut(img):
     x,y,w,h = 475,254,1536,864
-    img_valid = img[y:y+h, x:x+w]
+    img_valid = undistorted_img[y:y+h, x:x+w]
     img_valid = cv2.resize(img_valid, (1280, 720), interpolation=cv2.INTER_AREA)
     return img_valid
+    # I finally dont use this because it takes 0.12s per frame in averge, too havy
+

@@ -29,8 +29,10 @@ mouse_1 = sp.mouse(idx = 0, radius = 10, x = 0, y = 0, color = (0,0,255))
 allmouse.add(mouse_1)
 
 # create new fish and add to group
-fish = sp.fish(50, random.randint(0,SCREEN_WIDTH), 0, (0,255,0))
-allfish.add(fish)
+doux = sp.fish( type = 'doux', scale = 10, speed = 3)
+tard = sp.fish( type = 'tard', scale = 10, speed = 2)
+allfish.add(doux)
+allfish.add(tard)
 
 # set clock
 clock = pygame.time.Clock() 
@@ -59,6 +61,7 @@ def main():
 
         # update sprites status and draw
         for fish in allfish:
+            fish.draw(screen)
             fish.update(mouse_1)
             if (fish.kill == True):
                 allfish.remove(fish)
