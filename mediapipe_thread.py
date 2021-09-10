@@ -37,11 +37,24 @@ class mediapipe_data(threading.Thread):
         _, image = camera.read()
         self.image_main = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
+        self.back_images = []
+        self.back_images.append (cv2.cvtColor(cv2.resize(cv2.imread('.\pygame_mediapipe\images\\fish_tank\\move_0.png', cv2.IMREAD_COLOR),(1280,720),cv2.INTER_LANCZOS4), cv2.COLOR_BGR2RGB))
+        self.back_images.append (cv2.cvtColor(cv2.resize(cv2.imread('.\pygame_mediapipe\images\\fish_tank\\move_1.png', cv2.IMREAD_COLOR),(1280,720),cv2.INTER_LANCZOS4), cv2.COLOR_BGR2RGB))
+        self.back_images.append (cv2.cvtColor(cv2.resize(cv2.imread('.\pygame_mediapipe\images\\fish_tank\\move_2.png', cv2.IMREAD_COLOR),(1280,720),cv2.INTER_LANCZOS4), cv2.COLOR_BGR2RGB))
+
     def kill_thread(self):
         self.MP_LOOP = False
 
+
     def get_image(self):
-        return self.image_main
+        # cv2.IMREAD_UNCHANGED
+        rocks =  cv2.cvtColor(cv2.resize(cv2.imread('.\pygame_mediapipe\images\\fish_tank\\background.png', cv2.IMREAD_COLOR),(1280,720),cv2.INTER_LANCZOS4), cv2.COLOR_BGR2RGB)
+        # add or blend the images
+        image = cv2.addWeighted(self.image_main, 0.1, self.back_images[int(time.time() % 3)], 0.9, 0.0)
+        image = cv2.addWeighted(image, 0.8, rocks, 0.2, 0.0)
+
+        return image
+
     def get_results(self):
         if self.results_main:
             return self.results_main

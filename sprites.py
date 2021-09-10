@@ -1,6 +1,7 @@
 import pygame
 import random
 import math 
+import time
 
 # import other files 
 import mediapipe_thread as mp_thread
@@ -175,3 +176,4 @@ class fish(pygame.sprite.Sprite):
                 frame = (self.rect.x // 30) % len(self.move_frame_L)
                 self.image = self.move_frame_L[frame]
             self.excite_timer -= 1
+
